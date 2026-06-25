@@ -6,7 +6,7 @@
 	},
 	"id": "axiom.remote-control",
 	"name": "Remote Control",
-	"version": "v1.0.0",
+	"version": "v1.0.1",
 	"developer": "Axiom",
 	"description": "let anyone control ur game with a simple website lol",
 	"tags": [

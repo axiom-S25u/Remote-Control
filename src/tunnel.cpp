@@ -134,6 +134,8 @@ void stopTunnel() {
 #include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <CommonCrypto/CommonDigest.h>
+#include <fstream>
 
 static pid_t g_pid = 0;
 static int g_readFd = -1;
@@ -428,26 +430,71 @@ void checkAndDownloadCloudflared(bool forceReinstall) {
                 return;
             }
 
+#if defined(GEODE_IS_MACOS) || defined(GEODE_IS_INTEL_MAC)
+            ByteVector const& raw = res.data();
+
+            unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+            CC_SHA256(raw.data(), (CC_LONG)raw.size(), digest);
+            char hexbuf[CC_SHA256_DIGEST_LENGTH * 2 + 1];
+            for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
+                snprintf(hexbuf + i * 2, 3, "%02x", digest[i]);
+            }
+            std::string computed(hexbuf);
+
+#ifdef GEODE_IS_INTEL_MAC
+            const char* expected = "3f74d697045ecf56dd2fbeb42f59767ecdf4067c409d55f080563923e8a1bb32";
+#else
+            const char* expected = "ae6ee90188ae5833c687ce937c3693e28403677607c06c65a2ff2b6a022f50e4";
+#endif
+            if (computed != expected) {
+                log::error("sha256 mismatch! got {} expected {}", computed, expected);
+                Loader::get()->queueInMainThread([]() {
+                    Notification::create("Hash mismatch! File may be corrupt.", NotificationIcon::Error)->show();
+                    if (g_downloadPopup) g_downloadPopup->onClose(nullptr);
+                });
+                return;
+            }
+
+            std::error_code ec;
+            std::filesystem::create_directories(saveDir, ec);
+            std::ofstream outFile(cfPath, std::ios::binary | std::ios::trunc);
+            if (!outFile) {
+                log::error("failed to open {} for writing", geode::utils::string::pathToString(cfPath));
+                Loader::get()->queueInMainThread([]() {
+                    Notification::create("Failed to save cloudflared!", NotificationIcon::Error)->show();
+                    if (g_downloadPopup) g_downloadPopup->onClose(nullptr);
+                });
+                return;
+            }
+            outFile.write(reinterpret_cast<const char*>(raw.data()), (std::streamsize)raw.size());
+            outFile.close();
+            std::filesystem::permissions(cfPath,
+                std::filesystem::perms::owner_exec | std::filesystem::perms::group_exec | std::filesystem::perms::others_exec,
+                std::filesystem::perm_options::add, ec);
+            if (ec) log::error("chmod failed: {}", ec.message());
+            log::info("cloudflared downloaded and verified ok");
+            Loader::get()->queueInMainThread([]() {
+                Notification::create("Tunnel binary downloaded!", NotificationIcon::Success)->show();
+                if (g_downloadPopup) g_downloadPopup->onClose(nullptr);
+            });
+#else
             std::error_code ec;
             std::filesystem::create_directories(saveDir, ec);
             Result<> wrote = res.into(cfPath);
             if (wrote.isErr()) {
                 log::error("Failed to write cloudflared: {}", wrote.unwrapErr());
-                Notification::create("Failed to save cloudflared!", NotificationIcon::Error)->show();
-            } else {
-                log::info("Successfully downloaded cloudflared");
-#ifndef GEODE_IS_WINDOWS
-                std::filesystem::permissions(cfPath,
-                    std::filesystem::perms::owner_exec | std::filesystem::perms::group_exec | std::filesystem::perms::others_exec,
-                    std::filesystem::perm_options::add, ec);
-#endif
-                Notification::create("Tunnel binary downloaded!", NotificationIcon::Success)->show();
+                Loader::get()->queueInMainThread([]() {
+                    Notification::create("Failed to save cloudflared!", NotificationIcon::Error)->show();
+                    if (g_downloadPopup) g_downloadPopup->onClose(nullptr);
+                });
+                return;
             }
+            log::info("Successfully downloaded cloudflared");
             Loader::get()->queueInMainThread([]() {
-                if (g_downloadPopup) {
-                    g_downloadPopup->onClose(nullptr);
-                }
+                Notification::create("Tunnel binary downloaded!", NotificationIcon::Success)->show();
+                if (g_downloadPopup) g_downloadPopup->onClose(nullptr);
             });
+#endif
         }
     );
 }

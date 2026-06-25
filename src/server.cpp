@@ -44,7 +44,7 @@ button.held{background:#333;border-color:#888}
   <button class="dir" id="btn-left" ontouchstart="hold('left',this)" ontouchend="release('left',this)" ontouchcancel="release('left',this)" onmousedown="hold('left',this)" onmouseup="release('left',this)" onmouseleave="release('left',this)">Left</button>
   <button class="dir" id="btn-right" ontouchstart="hold('right',this)" ontouchend="release('right',this)" ontouchcancel="release('right',this)" onmousedown="hold('right',this)" onmouseup="release('right',this)" onmouseleave="release('right',this)">Right</button>
 </div>
-<div class="row"><button class="small" ontouchstart="send('restart')" onmousedown="send('restart')">Restart</button></div>
+
 <script>
 var held={jump:false,left:false,right:false};
 var hbTimer=null;
