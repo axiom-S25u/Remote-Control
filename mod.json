@@ -1,0 +1,31 @@
+{
+	"geode": "5.7.1",
+	"gd": {
+		"win": "2.2081",
+		"mac": "2.2081"
+	},
+	"id": "axiom.remote-control",
+	"name": "Remote Control",
+	"version": "v1.0.0",
+	"developer": "Axiom",
+	"description": "let anyone control ur game with a simple website lol",
+	"tags": [
+		"utility",
+		"joke",
+		"gameplay"
+	],
+	"resources": {
+		"files": [
+			"resources/*"
+		]
+	},
+	"settings": {
+		"webhook-url": {
+			"type": "string",
+			"name": "Webhook URL",
+			"description": "Discord webhook link, leave empty to ignore",
+			"default": "",
+			"filter": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:.-_~?=&#%@+,[]{}!"
+		}
+	}
+}
